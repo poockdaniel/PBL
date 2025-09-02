@@ -5,12 +5,8 @@ import numpy as np
 from sklearn.model_selection import StratifiedKFold, KFold
 from sklearn.metrics import accuracy_score, confusion_matrix
 import matplotlib.pyplot as plt
-from utils import save_config, create_run_folder, visualize_cv_training, log_training, log_metrics
-from models import build_model
-import models
-import os
-import sys
-import preprocessing as pp
+from .utils import save_config, create_run_folder, visualize_cv_training, log_training, log_metrics
+from .models import build_model
 
 def train_one_epoch(model, loader, optimizer, loss_fn):
     model.train()
@@ -95,9 +91,3 @@ def cross_validate(model_in, dataset, optimizer_fn, weight_decay, loss_fn, n_spl
     log_training(run_path, log_msg)
     log_metrics(run_path, results)
     return np.array(results)
-
-
-dataset = pp.create_dataset('/Users/daniel/Desktop/PBL/Task 1/embeddings/embeddings_exp_proteins_clustered_70_filter_lens_25-75_undersampled_s35526.npy', '/Users/daniel/Desktop/PBL/Task 1/data/preprocessed/exp_proteins_clustered_70_filter_lens_25-75_undersampled.tsv', 'exp_proteins_clustered_70_filter_lens_25-75_undersampled')
-model = models.Task1Model(dims=[1024, 683, 683, 1], dropouts=[0.5], activation=nn.LeakyReLU(), normalize=False)
-criterion = nn.BCELoss()
-cross_validate(model, dataset, optim.SGD, 0.003, criterion, 5, 32, 0.01, 100)
