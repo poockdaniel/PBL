@@ -5,6 +5,12 @@ import numpy as np
 from sklearn.model_selection import StratifiedKFold, KFold
 from sklearn.metrics import accuracy_score, confusion_matrix
 import matplotlib.pyplot as plt
+from utils import save_config, create_run_folder, visualize_cv_training, log_training, log_metrics
+from models import build_model
+import models
+import os
+import sys
+import preprocessing as pp
 
 def train_one_epoch(model, loader, optimizer, loss_fn):
     model.train()
@@ -20,8 +26,8 @@ def train_one_epoch(model, loader, optimizer, loss_fn):
         with torch.no_grad():
             outputs_rounded = np.round(outputs)
             total_acc += accuracy_score(labels, outputs_rounded)
-    avg_loss = np.round(total_loss / len(loader), 4)
-    avg_acc = np.round(total_acc / len(loader), 4)
+    avg_loss = round(total_loss / len(loader), 4)
+    avg_acc = round(total_acc / len(loader), 4)
     return avg_loss, avg_acc
 
 def evaluate(model, loader, loss_fn):
@@ -36,19 +42,22 @@ def evaluate(model, loader, loss_fn):
             conf += confusion_matrix(np.round(preds), labels, labels=[0, 1])
         avg_loss = total_loss / len(loader)
         tn, fp, fn, tp = conf.ravel().tolist()
-        acc = np.round((tn + tp) / len(loader.dataset), 4)
+        acc = round((tn + tp) / len(loader.dataset), 4)
         return avg_loss, acc, tp, fn, fp, tn
 
-def cross_validate(model_fn, dataset, optimizer_fn, loss_fn, n_splits, batch_size, learning_rate, epochs):
-    np.set_printoptions(suppress=True)
+def cross_validate(model_in, dataset, optimizer_fn, weight_decay, loss_fn, n_splits, batch_size, lr, epochs):
+    run_path = create_run_folder()
     train_loss_tracking = []
     val_loss_tracking = []
     train_acc_tracking = []
     val_acc_tracking = []
-    results = []
+    results = dict()
     skfold = StratifiedKFold(n_splits=n_splits, shuffle=True)
-    
+    log_msg = ''
+    model_config = save_config(run_path, model_in, dataset, optimizer_fn(model_in.parameters(), lr=lr, weight_decay=weight_decay), loss_fn, epochs)
+
     for fold, (train_idx, val_idx) in enumerate(skfold.split(dataset.X, dataset.y)):
+        log_msg += f'Fold {fold + 1}\n'
         print(f'Fold {fold + 1}')
         train_set = Subset(dataset, train_idx)
         val_set = Subset(dataset, val_idx)
@@ -60,12 +69,13 @@ def cross_validate(model_fn, dataset, optimizer_fn, loss_fn, n_splits, batch_siz
         train_acc_list = []
         val_acc_list = []
 
-        model = model_fn()
-        optimizer = optimizer_fn(model.parameters(), lr=learning_rate)
+        model = build_model(model_config)
+        optimizer = optimizer_fn(model.parameters(), lr=lr, weight_decay=weight_decay)
         
         for e in range(epochs):
             train_loss, train_acc = train_one_epoch(model, train_loader, optimizer, loss_fn)
             val_loss, val_acc, tp, fn, fp, tn = evaluate(model, val_loader, loss_fn)
+            log_msg += f'Train loss: {train_loss:.4f}, Validation loss: {val_loss:.4f}, Validation acc: {val_acc:.4f}\n'
             print(f'Train loss: {train_loss:.4f}, Validation loss: {val_loss:.4f}, Validation acc: {val_acc:.4f}')
             train_loss_list.append(train_loss)
             val_loss_list.append(val_loss)
@@ -75,33 +85,19 @@ def cross_validate(model_fn, dataset, optimizer_fn, loss_fn, n_splits, batch_siz
         val_loss_tracking.append(val_loss_list)
         train_acc_tracking.append(train_acc_list)
         val_acc_tracking.append(val_acc_list)
-
-        results.append([val_acc, tp, fn, fp, tn])
+        results[f'Fold {fold + 1}'] = {'validation_acc': val_acc, 'tp': tp, 'fn': fn, 'fp': fp, 'tn': tn}
 
     train_loss_means = np.round(np.stack(train_loss_tracking).mean(axis=0), 4)
     val_loss_means = np.round(np.stack(val_loss_tracking).mean(axis=0), 4)
     train_acc_means = np.round(np.stack(train_acc_tracking).mean(axis=0), 4)
     val_acc_means = np.round(np.stack(val_acc_tracking).mean(axis=0), 4)
-    visualize_training(train_loss_means, val_loss_means, train_acc_means, val_acc_means, epochs)
-    print(f'5 {results}')
-    return np.array(results, dtype=np.float64)
+    visualize_cv_training(run_path, train_loss_means, val_loss_means, train_acc_means, val_acc_means, epochs)
+    log_training(run_path, log_msg)
+    log_metrics(run_path, results)
+    return np.array(results)
 
-def visualize_training(tlm, vlm, tam, vam, num_epochs):
-    epochs = range(1, num_epochs + 1)
-    plt.plot(epochs, tlm, label='Training Loss')
-    plt.plot(epochs, vlm, label='Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title('Average Training vs Validation Loss over Splits')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
 
-    plt.plot(epochs, tam, label='Training Accuracy')
-    plt.plot(epochs, vam, label='Validation Accuracy')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.title('Average Training vs Validation Accuracy over Splits')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+dataset = pp.create_dataset('/Users/daniel/Desktop/PBL/Task 1/embeddings/embeddings_exp_proteins_clustered_70_filter_lens_25-75_undersampled_s35526.npy', '/Users/daniel/Desktop/PBL/Task 1/data/preprocessed/exp_proteins_clustered_70_filter_lens_25-75_undersampled.tsv', 'exp_proteins_clustered_70_filter_lens_25-75_undersampled')
+model = models.Task1Model(dims=[1024, 683, 683, 1], dropouts=[0.5], activation=nn.LeakyReLU(), normalize=False)
+criterion = nn.BCELoss()
+cross_validate(model, dataset, optim.SGD, 0.003, criterion, 5, 32, 0.01, 100)

@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
 from protlearn import preprocessing
+from torch.utils.data import Dataset
+import torch
+import os
 
 amino_acids = "ACDEFGHIKLMNPQRSTVWY"
 
@@ -90,5 +93,24 @@ def undersample(df):
 def remove_random(df, n):
     return df.drop(df.sample(n).index)
 
-
+class Task1Dataset(Dataset):
+    def __init__(self, X, y, name=''):
+        self.X = X
+        self.y = y
+        self.name = name
     
+    def __len__(self):
+        return len(self.X)
+
+    def __getitem__(self, idx):
+        return self.X[idx], self.y[idx]
+
+def create_dataset(embeddings_file, label_file, name='', dtype=torch.float32):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    embeddings_raw = np.load(embeddings_file)
+    labels_raw = list(pd.read_csv(label_file, sep='\t')['Enzyme'])
+
+    embeddings = torch.tensor(embeddings_raw, dtype=dtype).to(device=device)
+    labels = torch.tensor(labels_raw, dtype=dtype).unsqueeze(dim=1).to(device=device)
+
+    return Task1Dataset(embeddings, labels, name)
