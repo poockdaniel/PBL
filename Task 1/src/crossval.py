@@ -8,17 +8,20 @@ import matplotlib.pyplot as plt
 from .utils import save_config, create_run_folder, visualize_cv_training, log_training, log_metrics
 from .models import build_model
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 def train_one_epoch(model, loader, optimizer, loss_fn):
     model.train()
     total_loss = 0
     total_acc = 0
     for feats, labels in loader:
+        feats, labels = feats.to(device=device), labels.to(device=device)
         optimizer.zero_grad()
         outputs = model(feats)
         loss = loss_fn(outputs, labels)
         loss.backward()
         optimizer.step()
-        total_loss += loss.item()
+        total_loss += loss.cpu().item()
         with torch.no_grad():
             outputs_rounded = np.round(outputs)
             total_acc += accuracy_score(labels, outputs_rounded)
@@ -32,9 +35,10 @@ def evaluate(model, loader, loss_fn):
         total_loss = 0
         conf = np.zeros([2, 2])
         for feats, labels in loader:
+            feats, labels = feats.to(device=device), labels.to(device=device)
             preds = model(feats)
             loss = loss_fn(preds, labels)
-            total_loss += loss.item()
+            total_loss += loss.cpu().item()
             conf += confusion_matrix(np.round(preds), labels, labels=[0, 1])
         avg_loss = total_loss / len(loader)
         tn, fp, fn, tp = conf.ravel().tolist()

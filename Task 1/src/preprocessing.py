@@ -110,7 +110,7 @@ def create_dataset(embeddings_file, label_file, name='', dtype=torch.float32):
     embeddings_raw = np.load(embeddings_file)
     labels_raw = list(pd.read_csv(label_file, sep='\t')['Enzyme'])
 
-    embeddings = torch.tensor(embeddings_raw, dtype=dtype).to(device=device)
-    labels = torch.tensor(labels_raw, dtype=dtype).unsqueeze(dim=1).to(device=device)
+    embeddings = torch.tensor(embeddings_raw, dtype=dtype)
+    labels = torch.tensor(labels_raw, dtype=dtype).unsqueeze(dim=1)
 
     return Task1Dataset(embeddings, labels, name)

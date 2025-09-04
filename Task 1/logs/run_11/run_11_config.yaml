@@ -19,7 +19,7 @@ training:
     lr: 0.017
     weight_decay: 0.0012
   loss_fn: BCELoss
-  epochs: 150
+  epochs: 2
 dataset:
   name: exp_proteins_clustered_70_filter_lens_25-75_undersampled
   size: 35526
