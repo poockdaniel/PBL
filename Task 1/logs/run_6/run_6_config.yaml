@@ -6,6 +6,7 @@ model:
   - 683
   - 1
   dropouts:
+  - 0.5
   - 0.3
   activation:
     name: LeakyReLU
@@ -15,10 +16,10 @@ model:
 training:
   optimizer:
     name: SGD
-    lr: 0.01
+    lr: 0.018
     weight_decay: 0
   loss_fn: BCELoss
-  epochs: 100
+  epochs: 200
 dataset:
   name: exp_proteins_clustered_70_filter_lens_25-75_undersampled
   size: 35526

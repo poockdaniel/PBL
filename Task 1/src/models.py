@@ -53,3 +53,9 @@ def build_model(model_config):
             normalize = config['model']['normalize']
             dtype = torch.float32
     return model_type(dims=dims, dropouts=dropouts, activation=activation, normalize=normalize, dtype=dtype)
+
+
+test_vector = torch.tensor([1], requires_grad=True, dtype=torch.float32)
+test_vector_2 = test_vector**2 + 4
+test_vector_2.backward()
+print(test_vector.grad)

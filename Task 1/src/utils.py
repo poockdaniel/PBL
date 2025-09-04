@@ -101,6 +101,7 @@ def visualize_cv_training(path, tlm, vlm, tam, vam, num_epochs):
     plt.legend()
     plt.grid(True)
     plt.savefig(file_path_loss)
+    plt.show()
 
     plt.plot(epochs, tam, label='Training accuracy')
     plt.plot(epochs, vam, label='Validation accuracy')
@@ -110,6 +111,7 @@ def visualize_cv_training(path, tlm, vlm, tam, vam, num_epochs):
     plt.legend()
     plt.grid(True)
     plt.savefig(file_path_acc)
+    plt.show()
 
 def log_training(path, msg):
     msg_path = os.path.join(path, f'{os.path.basename(path)}_cv_training.log')
